@@ -127,7 +127,7 @@ def predict_image(img, model=disease_model):
 # ------------------------------------ FLASK APP -------------------------------------------------
 
 
-app = Flask(_name_)
+app = Flask(__name__)
 
 # render home page
 
