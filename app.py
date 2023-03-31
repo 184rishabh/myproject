@@ -1,6 +1,6 @@
 # Importing essential libraries and modules
 
-from flask import Flask, render_template, request, Markup
+from flask import Flask, render_template, request, Markup,jsonify
 import numpy as np
 import pandas as pd
 from utils.disease import disease_dic
@@ -27,18 +27,18 @@ disease_classes = ['Apple___Apple_scab',
                    'Cherry_(including_sour)___Powdery_mildew',
                    'Cherry_(including_sour)___healthy',
                    'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot',
-                   'Corn_(maize)___Common_rust_',
+                   'Corn_(maize)__Common_rust',
                    'Corn_(maize)___Northern_Leaf_Blight',
                    'Corn_(maize)___healthy',
                    'Grape___Black_rot',
-                   'Grape___Esca_(Black_Measles)',
-                   'Grape___Leaf_blight_(Isariopsis_Leaf_Spot)',
+                   'Grape__Esca(Black_Measles)',
+                   'Grape__Leaf_blight(Isariopsis_Leaf_Spot)',
                    'Grape___healthy',
-                   'Orange___Haunglongbing_(Citrus_greening)',
+                   'Orange__Haunglongbing(Citrus_greening)',
                    'Peach___Bacterial_spot',
                    'Peach___healthy',
-                   'Pepper,_bell___Bacterial_spot',
-                   'Pepper,_bell___healthy',
+                   'Pepper,bell__Bacterial_spot',
+                   'Pepper,bell__healthy',
                    'Potato___Early_blight',
                    'Potato___Late_blight',
                    'Potato___healthy',
@@ -118,15 +118,16 @@ def predict_image(img, model=disease_model):
     yb = model(img_u)
     # Pick index with highest probability
     _, preds = torch.max(yb, dim=1)
-    prediction = disease_classes[preds[0].item()]
+    # print(preds[0].item())
+    # prediction = disease_classes[preds[0].item()]
     # Retrieve the class label
-    return prediction
+    return (preds[0].item())
 
 # ===============================================================================================
 # ------------------------------------ FLASK APP -------------------------------------------------
 
 
-app = Flask(__name__)
+app = Flask(_name_)
 
 # render home page
 
@@ -170,29 +171,105 @@ def crop_prediction():
     title = 'Harvestify - Crop Recommendation'
 
     if request.method == 'POST':
-        N = int(request.form['nitrogen'])
-        P = int(request.form['phosphorous'])
-        K = int(request.form['pottasium'])
-        ph = float(request.form['ph'])
-        rainfall = float(request.form['rainfall'])
+        v1=request.form['nitrogen']
+        v2=request.form['phosphorus']
+        v3=request.form['potassium']
+        v4=request.form['temp']
+        v5=request.form['humidity']
+        v6=request.form['ph']
+        v7=request.form['rain']
+        v1=int(v1)
+        v2=int(v2)
+        v3=int(v3)
+        v4=int(v4)
+        v5=int(v5)
+        v6=float(v6)
+        v7=int(v7)
+        model =  pickle.load(open('crop_recommendation','rb'))
+        y = int(model.predict([[v1,v2,v3,v4,v5,v6,v7]]))
+        dict={
+            1:'apple',
+            2:'banana',
+            3:'blackgram',
+            4:'chickpea',
+            5:'coconut',
+            6:'coffee',
+            7:'cotton',
+            8:'grapes',
+            9:'jute',
+            10:'kidneybeans',
+            11:'lentil',
+            12:'maize',
+            13:'mango',
+            14:'mothbeans',
+            15:'mungbean',
+            16:'muskmelon',
+            17:'orange',
+            18:'papaya',
+            19:'pigeonpeas',
+            20:'pomegranate',
+            21:'rice',
+            22:'watermelon'
+        }
+        print(dict[y+1])
+       
 
-        # state = request.form.get("stt")
-        city = request.form.get("city")
+        return jsonify(dict[y+1])
 
-        if weather_fetch(city) != None:
-            temperature, humidity = weather_fetch(city)
-            data = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
-            my_prediction = crop_recommendation_model.predict(data)
-            final_prediction = my_prediction[0]
-
-            return render_template('crop-result.html', prediction=final_prediction, title=title)
-
-        else:
+    else:
 
             return render_template('try_again.html', title=title)
 
 # render fertilizer recommendation result page
 
+@app.route('/predict',methods=['POST'])   
+def predict():
+    if request.method=='POST' :
+       v1=request.form['nitrogen']
+       v2=request.form['phosphorus']
+       v3=request.form['potassium']
+       v4=request.form['temp']
+       v5=request.form['humidity']
+       v6=request.form['ph']
+       v7=request.form['rain']
+       v1=int(v1)
+       v2=int(v2)
+       v3=int(v3)
+       v4=int(v4)
+       v5=int(v5)
+       v6=float(v6)
+       v7=int(v7)
+       model =  pickle.load(open('crop_recommendation','rb'))
+       y = int(model.predict([[v1,v2,v3,v4,v5,v6,v7]]))
+       dict={
+            1:'apple',
+            2:'banana',
+            3:'blackgram',
+            4:'chickpea',
+            5:'coconut',
+            6:'coffee',
+            7:'cotton',
+            8:'grapes',
+            9:'jute',
+            10:'kidneybeans',
+            11:'lentil',
+            12:'maize',
+            13:'mango',
+            14:'mothbeans',
+            15:'mungbean',
+            16:'muskmelon',
+            17:'orange',
+            18:'papaya',
+            19:'pigeonpeas',
+            20:'pomegranate',
+            21:'rice',
+            22:'watermelon'
+       }
+       print(dict[y+1])
+       response={
+           "crop":dict[y+1]
+       }
+    return  jsonify(response),200
 
 @ app.route('/fertilizer-predict', methods=['POST'])
 def fert_recommend():
@@ -244,22 +321,26 @@ def disease_prediction():
 
     if request.method == 'POST':
         if 'file' not in request.files:
-            return redirect(request.url)
+            response={"message":"file not found"}
+            return jsonify(response),404
         file = request.files.get('file')
         if not file:
-            return render_template('disease.html', title=title)
+             response={"message":"file not found"}
+             return jsonify(response),404
         try:
             img = file.read()
 
             prediction = predict_image(img)
 
-            prediction = Markup(str(disease_dic[prediction]))
-            return render_template('disease-result.html', prediction=prediction, title=title)
+            # prediction = (str(disease_dic[prediction]))
+            
+
+            return jsonify(disease_classes[prediction]),200
         except:
             pass
     return render_template('disease.html', title=title)
 
 
 # ===============================================================================================
-if __name__ == '__main__':
+if _name_ == '_main_':
     app.run(debug=False)
